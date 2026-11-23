@@ -1,0 +1,36 @@
+# Entorno virtual y dependencias Python
+.venv/
+venv/
+*.egg-info/
+
+# Bibliotecas GI extraídas localmente (se regeneran con packaging/fetch-vendor.sh)
+vendor/
+
+# Bytecodes
+__pycache__/
+*.py[cod]
+*.so
+
+# Paquetes construidos
+*.rpm
+*.src.rpm
+rpmbuild/
+RPMS/
+SRPMS/
+
+# Herramientas de desarrollo
+/dev.sh
+/shot.sh
+/focus.py
+
+# Datos del usuario
+*.session.json
+/netterm.log
+/netterm.pid
+
+# Editores y sistema
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store

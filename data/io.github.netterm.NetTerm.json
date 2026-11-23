@@ -1,0 +1,57 @@
+{
+  "app-id": "io.github.netterm.NetTerm",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "50",
+  "sdk": "org.gnome.Sdk",
+  "command": "netterm.sh",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=x11",
+    "--socket=fallback-x11",
+    "--socket=pulseaudio",
+    "--device=all",
+    "--share=network",
+    "--filesystem=xdg-config/netterm:create",
+    "--filesystem=xdg-data/netterm:create"
+  ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/python3/bin",
+    "prepend-ld-library-path": "/usr/lib/sdk/gtk-4/lib",
+    "env": {
+      "PYTHONPATH": "/app/lib/python3.15/site-packages"
+    }
+  },
+  "modules": [
+    {
+      "name": "vte291-gtk4",
+      "buildsystem": "simple",
+      "build-commands": [
+        "mkdir -p /app/vendor/usr/lib64/girepository-1.0",
+        "rpm2cpio vte291-gtk4*.rpm | cpio -idm --quiet -D /app/vendor",
+        "rpm2cpio vte291*.rpm | cpio -idm --quiet -D /app/vendor"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://kojipkgs.fedoraproject.org/packages/vte291-gtk4/0.84.1/1.fc45/x86_64/os/vte291-gtk4-0.84.1-1.fc45.x86_64.rpm",
+          "dest": "vte291-gtk4.rpm"
+        },
+        {
+          "type": "archive",
+          "url": "https://kojipkgs.fedoraproject.org/packages/vte291/0.84.1/1.fc45/x86_64/os/vte291-0.84.1-1.fc45.x86_64.rpm",
+          "dest": "vte291.rpm"
+        }
+      ]
+    },
+    {
+      "name": "python-deps",
+      "buildsystem": "simple",
+      "build-commands": [
+        "python3 -m venv --system-site-packages /app/venv",
+        "/app/venv/bin/pip install --no-cache-dir paramiko pyserial cryptography"
+      ],
+      "sources": []
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+name: Construir RPM
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  rpm:
+    name: RPM en Fedora ${{ matrix.fedora }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        fedora: ['41', '42', '43', '44', '45']
+
+    container:
+      image: fedora:${{ matrix.fedora }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependencias de construcción
+        run: |
+          dnf install -y rpm-build rpm python3-devel python3-setuptools \
+                          desktop-file-utils make gcc \
+                          gtk4-devel libadwaita-devel vte291-gtk4-devel \
+                          python3-paramiko python3-pyserial python3-cryptography
+
+      - name: Preparar
+        run: |
+          %autosetup 2>/dev/null || true
+          # Se compila directamente sobre el árbol de fuentes.
+          mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+
+      - name: Construir
+        run: |
+          mkdir -p ~/rpmbuild/BUILD/netterm-%{VERSION}
+          cp -r netterm data README.md LICENSE ~/rpmbuild/BUILD/netterm-%{VERSION}/
+          cp packaging/netterm.spec ~/rpmbuild/BUILD/netterm-%{VERSION}/packaging/
+          tar -czf ~/rpmbuild/SOURCES/netterm-%{VERSION}.tar.gz \
+              -C ~/rpmbuild/BUILD netterm-%{VERSION}
+          cp packaging/netterm.spec ~/rpmbuild/SPECS/
+          rpmbuild -ba ~/rpmbuild/SPECS/netterm.spec
+
+      - name: Publicar
+        uses: actions/upload-artifact@v4
+        with:
+          name: netterm-${{ matrix.fedora }}-rpm
+          path: ~/rpmbuild/RPMS/*/*.rpm
+
+  pruebas:
+    name: Pruebas funcionales
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencias
+        run: |
+          dnf install -y python3 python3-pip python3-gi gtk4 libadwaita \
+                          vte291-gtk4 python3-paramiko python3-pyserial \
+                          python3-cryptography xvfb-run dbus-x11
+      - name: Preparar el entorno virtual
+        run: |
+          python3 -m venv --system-site-packages .venv
+          .venv/bin/pip install paramiko pyserial cryptography
+          ./packaging/fetch-vendor.sh
+      - name: Ejecutar pruebas
+        run: |
+          export GI_TYPELIB_PATH=$PWD/vendor/usr/lib64/girepository-1.0
+          export LD_LIBRARY_PATH=$PWD/vendor/usr/lib64
+          xvfb-run -a .venv/bin/python -u tests/test_functional.py

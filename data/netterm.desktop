@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=NetTerm
+GenericName=Terminal avanzada, alternativa nativa a MobaXterm en Linux
+Comment=Terminal avanzada, alternativa nativa a MobaXterm en Linux. Cliente open source de terminal, SSH, SFTP y consola serie.
+Exec=netterm.sh
+Icon=io.github.netterm.NetTerm
+Terminal=false
+Categories=System;TerminalEmulator;
+Keywords=SSH;SFTP;telnet;serial;terminal;consola;serie;MobaXterm;network;red;
+StartupNotify=true
+StartupWMClass=NetTerm
