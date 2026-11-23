@@ -5,6 +5,7 @@ Version:        1.0.0
 Release:        1%{?dist}
 Summary:        Terminal avanzada, alternativa nativa a MobaXterm en Linux
 
+#GPL-3.0-or-later
 License:        GPL-3.0-or-later
 URL:            https://github.com/netterm/netterm
 Source0:        %{name}-%{version}.tar.gz
