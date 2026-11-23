@@ -219,8 +219,9 @@ boton = Gtk.Button(label=tr("New SSH session"))
 
 ## Licencia
 
-GPL-3.0-or-later. NetTerm es una reimplementación independiente escrita desde
-cero: no contiene código ni binarios de MobaXterm (software propietario de
+GPL-3.0-or-later (`LICENSE` con el texto íntegro, `NOTICE` con la atribución
+de NetTerm). NetTerm es una reimplementación independiente escrita desde cero:
+no contiene código ni binarios de MobaXterm (software propietario de
 MobaXterm/BMob, cuyo EULA prohíbe la ingeniería inversa); sólo se ha usado su
 **lista pública de funciones** como especificación funcional.
 

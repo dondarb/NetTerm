@@ -1,0 +1,26 @@
+NetTerm — Terminal avanzada, alternativa nativa a MobaXterm en Linux
+Copyright (C) 2026 NetTerm contributors
+
+Este programa es software libre: puedes redistribuirlo y/o modificarlo bajo
+los términos de la Licencia Pública General de GNU, versión 3 o posterior.
+
+Este programa se distribuye con la esperanza de que sea útil, pero SIN
+NINGUNA GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZABILIDAD o
+IDONEIDAD PARA UN PROPÓSITO PARTICULAR. Consulta la Licencia Pública General
+de GNU para más detalles.
+
+Deberías haber recibido una copia de la Licencia Pública General de GNU junto
+con este programa. Si no, consulta <https://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------
+Nota sobre MobaXterm
+--------------------------------------------------------------------
+NetTerm es una reimplementación independiente escrita desde cero en
+Python/GTK4. No contiene código, binarios ni recursos de MobaXterm
+(software propietario de MobaXterm/BMob, cuyo EULA prohíbe la ingeniería
+inversa); sólo se ha usado su lista pública de funciones como especificación
+funcional.
+
+Los componentes que MobaXterm empaqueta (OpenSSH, PuTTY, Cygwin, PuTTYgen)
+tienen sus propias licencias, en general permisivas, y aquí se usan los
+originales de cada distribución Linux.

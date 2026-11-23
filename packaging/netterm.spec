@@ -123,6 +123,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{pkgname}.desktop
 
 %files
 %license LICENSE
+%license NOTICE
 %doc %{_docdir}/%{pkgname}
 %{_bindir}/%{pkgname}
 %{_datadir}/applications/%{pkgname}.desktop
