@@ -192,6 +192,42 @@ después, y permite elegir baudios, bits, paridad y parada.
 
 ---
 
+## Localización
+
+La interfaz está en español y usa una capa i18n propia, pensada para que
+cualquiera pueda añadir un idioma:
+
+```python
+from .i18n import tr
+
+boton = Gtk.Button(label=tr("New SSH session"))
+```
+
+- La clave del catálogo es el **original en inglés**; el valor, la traducción.
+- Cada módulo de `netterm/locale/` aporta su diccionario `STRINGS`.
+- Para añadir un idioma: crea `netterm/locale/en.py` y selecciona
+  `NETTERM_LANG=en`.
+- Si falta una traducción, `tr()` devuelve el texto original: la interfaz
+  nunca queda en blanco.
+
+## Documentación del proyecto
+
+| Fichero | Contenido |
+|---|---|
+| [CONTRIBUTING.md](CONTRIBUTING.md) | cómo contribuir, estilo y pruebas |
+| [LICENSES.md](LICENSES.md) | **alternativas de licencia** y cuándo usar cada una |
+
+## Licencia
+
+GPL-3.0-or-later. NetTerm es una reimplementación independiente escrita desde
+cero: no contiene código ni binarios de MobaXterm (software propietario de
+MobaXterm/BMob, cuyo EULA prohíbe la ingeniería inversa); sólo se ha usado su
+**lista pública de funciones** como especificación funcional.
+
+Si prefieres otra licencia (MIT, Apache-2.0, BSD-3, MPL-2.0…), consulta
+[LICENSES.md](LICENSES.md): el cambio son cuatro líneas y una reconstrucción
+del RPM.
+
 ## Estructura
 
 ```
