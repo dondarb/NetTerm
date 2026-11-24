@@ -406,7 +406,8 @@ class MainWindow(Adw.ApplicationWindow):
             session.type.icon if session else "utilities-terminal-symbolic")
         box.append(icon)
         label = Gtk.Label(label=page.title)
-        label.set_ellipsize(3)
+        # Sin elipsis: si la recortamos, la pestaña muestra sólo «…».
+        label.set_xalign(0)
         box.append(label)
         return box
 
