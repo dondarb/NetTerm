@@ -41,3 +41,21 @@ STRINGS = {
     "Banner de bienvenida": "Banner de bienvenida",
     "Logotipo (ruta)": "Logotipo (ruta)",
 }
+
+STRINGS.update({
+    "Abrir las sesiones en una ventana nueva":
+        "Abrir las sesiones en una ventana nueva",
+    "Como en MobaXterm: cada sesión SSH o serie se abre en su propia ventana":
+        "Como en MobaXterm: cada sesión SSH o serie se abre en su propia ventana",
+})
+
+STRINGS.update({
+    "How sessions are opened": "Cómo se abren las sesiones",
+    "Internal tab": "Pestaña interna",
+    "Floating window": "Ventana flotante",
+    "System window": "Ventana del sistema",
+    "Like the editor you are using: a tab inside the interface, a floating "
+    "window inside it, or a separate system window":
+        "Como el editor que usas: una pestaña dentro de la interfaz, una "
+        "ventana flotante dentro de ella o una ventana del sistema",
+})

@@ -181,6 +181,9 @@ class TerminalPage(Gtk.Box):
         self._serial: SerialChannel | None = None
         self._macro_recorder = None
         self._broadcast = False
+        # Las sesiones remotas dejan la pestaña abierta al terminar;
+        # el shell local la cierra (como una terminal normal).
+        self.close_on_exit = kind in ("local", "shell", "")
 
         self.set_hexpand(True)
         self.set_vexpand(True)
@@ -411,7 +414,7 @@ class TerminalPage(Gtk.Box):
         self._install_serial_keys()
 
     def _on_serial_data(self, text: str) -> bool:
-        self.terminal.feed(text)
+        self.terminal.feed(text.encode("utf-8", errors="replace"))
         return False
 
     def _on_serial_error(self, message: str) -> bool:
@@ -444,7 +447,8 @@ class TerminalPage(Gtk.Box):
     # Operaciones de terminal
     # ------------------------------------------------------------------
     def feed(self, text: str) -> None:
-        self.terminal.feed(text)
+        """Escribe texto en el terminal (VTE exige bytes)."""
+        self.terminal.feed(text.encode("utf-8", errors="replace"))
 
     def copy(self) -> None:
         self.terminal.copy_clipboard_format(Vte.Format.TEXT)
@@ -516,7 +520,11 @@ class TerminalPage(Gtk.Box):
             self._serial = None
         self.status_label.set_text(tr("sesión cerrada"))
         self.feed("\r\n\x1b[33m" + tr("[sesión terminada]") + "\x1b[0m\r\n")
-        self.emit("closed")
+        if self.close_on_exit:
+            # Sólo el shell local cierra su pestaña al terminar.
+            # Una sesión remota terminada deja la pestaña con el aviso, para
+            # poder revisarla y cerrarla a mano.
+            self.emit("closed")
 
     def close(self) -> None:
         if self._serial:

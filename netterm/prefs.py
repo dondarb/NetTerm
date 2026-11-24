@@ -42,14 +42,14 @@ class PreferencesWindow(Adw.PreferencesWindow):
         font.connect("changed", self._on_font)
         group.add(font)
 
-        size = Adw.SpinRow.new_with_range(title=tr("Tamaño de letra"),
-                                          bottom=6, top=32)
+        size = Adw.SpinRow.new_with_range(6, 32, 1)
+        size.set_title(tr("Tamaño de letra"))
         size.set_value(int(CONFIG.get("font_size", 11)))
         size.connect("value-changed", self._on_font_size)
         group.add(size)
 
-        scrollback = Adw.SpinRow.new_with_range(title=tr("Historial (líneas)"),
-                                                bottom=100, top=1000000)
+        scrollback = Adw.SpinRow.new_with_range(100, 1000000, 100)
+        scrollback.set_title(tr("Historial (líneas)"))
         scrollback.set_value(int(CONFIG.get("scrollback", 10000)))
         scrollback.connect("value-changed", self._on_scrollback)
         group.add(scrollback)
@@ -69,13 +69,13 @@ class PreferencesWindow(Adw.PreferencesWindow):
         group2 = Adw.PreferencesGroup(title=tr("Conexión"))
         shell = Adw.EntryRow(title=tr("Shell por defecto"))
         shell.set_text(str(CONFIG.get("default_shell", "")))
-        shell.set_subtitle(tr("Vacío = $SHELL del sistema"))
+        shell.set_tooltip_text(tr("Vacío = $SHELL del sistema"))
         shell.connect("changed", self._on_shell)
         group2.add(shell)
 
         ssh_opts = Adw.EntryRow(title=tr("Opciones SSH adicionales"))
         ssh_opts.set_text(str(CONFIG.get("ssh_options", "")))
-        ssh_opts.set_subtitle(tr("Se añaden a todas las sesiones SSH"))
+        ssh_opts.set_tooltip_text(tr("Se añaden a todas las sesiones SSH"))
         ssh_opts.connect("changed", self._on_ssh_options)
         group2.add(ssh_opts)
 
@@ -83,6 +83,17 @@ class PreferencesWindow(Adw.PreferencesWindow):
         x11.set_active(bool(CONFIG.get("x11_forward", True)))
         x11.connect("activate", self._on_x11)
         group2.add(x11)
+
+        new_win = Adw.ComboRow(title=tr("How sessions are opened"))
+        new_win.set_model(Gtk.StringList.new([
+            tr("Internal tab"), tr("Floating window"), tr("System window")]))
+        new_win.set_selected({"tabs": 0, "floating": 1, "window": 2}.get(
+            str(CONFIG.get("session_presentation", "tabs")), 0))
+        new_win.set_subtitle(tr("Like the editor you are using: a tab inside "
+                                "the interface, a floating window inside it, "
+                                "or a separate system window"))
+        new_win.connect("notify::selected", self._on_presentation)
+        group2.add(new_win)
         page.add(group2)
 
         # -- Seguridad ----------------------------------------------------
@@ -155,6 +166,15 @@ class PreferencesWindow(Adw.PreferencesWindow):
 
     def _on_x11(self, row, *_a) -> None:
         CONFIG.set("x11_forward", row.get_active())
+        self._save()
+
+    def _on_new_window(self, row, *_a) -> None:
+        CONFIG.set("sessions_in_new_window", row.get_active())
+        self._save()
+
+    def _on_presentation(self, row, *_a) -> None:
+        CONFIG.set("session_presentation",
+                   ["tabs", "floating", "window"][row.get_selected()])
         self._save()
 
     def _on_banner(self, row) -> None:

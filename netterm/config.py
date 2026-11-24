@@ -78,6 +78,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "highlight_patterns": [],
     "sidebar_width": 280,
     "sftp_follow_terminal": True,
+    "sessions_in_new_window": True,
+    "session_presentation": "tabs",
     "ssh_config_path": "",
     "auto_scan_interfaces": True,
     "recent_menu": True,

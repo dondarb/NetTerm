@@ -144,14 +144,14 @@ class SessionDialog(Adw.Window):
         self.host_row.set_text(self.existing.host if self.existing else "")
         group.add(self.host_row)
 
-        self.port_row = Adw.SpinRow.new_with_range(title=tr("Puerto"),
-                                                   bottom=1, top=65535)
+        self.port_row = Adw.SpinRow.new_with_range(1, 65535, 1)
+        self.port_row.set_title(tr("Puerto"))
         self.port_row.set_value(self.existing.port if self.existing else 22)
         group.add(self.port_row)
 
         self.jump_row = Adw.EntryRow(title=tr("SSH gateway (jump host)"))
         self.jump_row.set_text(self.existing.jump_host if self.existing else "")
-        self.jump_row.set_subtitle(tr("ProxyJump: primero conecta a este host"))
+        self.jump_row.set_tooltip_text(tr("ProxyJump: primero conecta a este host"))
         group.add(self.jump_row)
 
         self.url_row = Adw.EntryRow(title=tr("URL / archivo"))
@@ -165,7 +165,7 @@ class SessionDialog(Adw.Window):
 
         self.key_row = Adw.EntryRow(title=tr("Clave privada"))
         self.key_row.set_text(self.existing.key_file if self.existing else "")
-        self.key_row.set_subtitle(tr("Ruta a la clave (id_rsa, id_ed25519…)"))
+        self.key_row.set_tooltip_text(tr("Ruta a la clave (id_rsa, id_ed25519…)"))
         group.add(self.key_row)
 
         self.x11_row = Adw.SwitchRow(title=tr("X11 forwarding"))
@@ -183,8 +183,8 @@ class SessionDialog(Adw.Window):
         self.port_combo.set_model(model)
         group.add(self.port_combo)
 
-        self.baud_row = Adw.SpinRow.new_with_range(title=tr("Velocidad"),
-                                                   bottom=1200, top=115200)
+        self.baud_row = Adw.SpinRow.new_with_range(1200, 115200, 1)
+        self.baud_row.set_title(tr("Velocidad"))
         self.baud_row.set_value(self.existing.baudrate if self.existing else 115200)
         group.add(self.baud_row)
 

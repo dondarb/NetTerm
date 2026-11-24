@@ -114,3 +114,18 @@ STRINGS = {
     "Grabando macro…": "Grabando macro…",
     "No hay macros grabadas": "No hay macros grabadas",
 }
+
+STRINGS.update({
+    "Session «{name}» opened in a new window":
+        "Sesión «{name}» abierta en una ventana nueva",
+})
+
+STRINGS.update({
+    "Open a session": "Abrir una sesión",
+    "Search sessions…": "Buscar sesiones…",
+    "Open": "Abrir",
+    "No saved sessions": "No hay sesiones guardadas",
+    "New SSH session…": "Nueva sesión SSH…",
+    "Serial console…": "Consola serie…",
+    "Local shell": "Terminal local",
+})

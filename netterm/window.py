@@ -33,6 +33,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.set_size_request(880, 520)
 
         self.pages: list[TerminalPage] = []
+        self._session_windows: list = []
+        self._quitting = False
         self.multi_exec = False
         self._paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self._notebook = Gtk.Notebook()
@@ -51,6 +53,16 @@ class MainWindow(Adw.ApplicationWindow):
         self._paned.set_position(int(CONFIG.get("sidebar_width", 280)))
         self._paned.set_resize_start_child(False)
         self._paned.set_shrink_start_child(False)
+
+        # -- overlay con las ventanas flotantes internas -----------------
+        # Cada sesión remota se abre como una ventana flotante DENTRO de esta
+        # misma interfaz, al estilo del gestor de ventanas del navegador wave.
+        from .floating import FloatingManager
+
+        self._overlay = Gtk.Overlay()
+        self._overlay.set_child(self._paned)
+        self._floating = FloatingManager(self._overlay)
+        self._taskbar = self._floating.build_taskbar()
 
         # -- barra de estado ---------------------------------------------
         self.status_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -73,7 +85,10 @@ class MainWindow(Adw.ApplicationWindow):
         # -- toolbar ------------------------------------------------------
         self.toolbar = Adw.ToolbarView()
         self.toolbar.add_top_bar(self._build_header())
-        self.toolbar.set_content(self._paned)
+        self._content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._content_box.append(self._overlay)
+        self._content_box.append(self._taskbar)
+        self.toolbar.set_content(self._content_box)
         self.toolbar.add_bottom_bar(self.status_revealer)
 
         self._install_window_actions()
@@ -118,6 +133,12 @@ class MainWindow(Adw.ApplicationWindow):
         self.quick.set_tooltip_text(tr("Conexión rápida a un host"))
         self.quick.connect("activate", lambda e: self._quick_connect(e.get_text()))
         header.pack_start(self.quick)
+
+        # -- botón de apertura de sesión (estilo OpenCode) ---------------
+        self.new_session_btn = Gtk.Button(icon_name="list-add-symbolic",
+                                          tooltip_text=tr("Open a session"))
+        self.new_session_btn.connect("clicked", lambda *_: self._show_chooser())
+        header.pack_end(self.new_session_btn)
 
         # -- pestañas de terminal ----------------------------------------
         self.tab_label = Gtk.Box()
@@ -338,6 +359,23 @@ class MainWindow(Adw.ApplicationWindow):
         .netterm-sidebar { background: alpha(currentColor, 0.04); }
         .netterm-status { border-top: 1px solid alpha(currentColor, 0.12); }
         .netterm-tab-title { font-weight: 500; }
+
+        /* Ventanas flotantes internas */
+        .netterm-floating {
+            background: @theme_bg_color;
+            border: 1px solid alpha(currentColor, 0.25);
+            border-radius: 8px;
+            box-shadow: 0 4px 18px alpha(black, 0.45);
+        }
+        .netterm-titlebar {
+            background: alpha(currentColor, 0.10);
+            border-bottom: 1px solid alpha(currentColor, 0.18);
+            border-radius: 8px;
+        }
+        .netterm-taskbar {
+            border-top: 1px solid alpha(currentColor, 0.12);
+            background: alpha(currentColor, 0.04);
+        }
         """)
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), provider,
@@ -349,14 +387,36 @@ class MainWindow(Adw.ApplicationWindow):
     def add_page(self, page: TerminalPage) -> TerminalPage:
         self.pages.append(page)
         page.connect("closed", self._on_page_closed)
-        label = Gtk.Label(label=page.title)
+        label = self._make_tab_label(page)
         page._tab_label = label  # type: ignore[attr-defined]
         page.connect("title-changed",
-                     lambda p, t, lbl=label: lbl.set_text(t))
+                     lambda p, t, lbl=label: self._update_tab_label(lbl, p))
         self._notebook.append_page(page, label)
         self._notebook.set_current_page(self._notebook.get_n_pages() - 1)
         self._update_status()
         return page
+
+    def _make_tab_label(self, page: TerminalPage) -> Gtk.Widget:
+        """Pestaña interna: icono del protocolo + nombre de la sesión."""
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box.set_margin_top(2)
+        box.set_margin_bottom(2)
+        session = page.session
+        icon = Gtk.Image.new_from_icon_name(
+            session.type.icon if session else "utilities-terminal-symbolic")
+        box.append(icon)
+        label = Gtk.Label(label=page.title)
+        label.set_ellipsize(3)
+        box.append(label)
+        return box
+
+    def _update_tab_label(self, widget: Gtk.Widget, page: TerminalPage) -> None:
+        child = widget.get_first_child()
+        if child is None:
+            return
+        label = child.get_next_sibling()
+        if label is not None:
+            label.set_text(page.title)
 
     def current_page(self) -> TerminalPage | None:
         idx = self._notebook.get_current_page()
@@ -377,6 +437,11 @@ class MainWindow(Adw.ApplicationWindow):
             except Exception:
                 pass
         self._update_status()
+        if not self.pages and not self._quitting:
+            # La ventana no puede quedarse sin terminales: si se cierra el
+            # último, se abre un shell local nuevo. Si no, Gtk.Application
+            # cerraría la ventana y la aplicación moriría.
+            self._open_local_terminal()
 
     def _on_switch_page(self, *_args) -> None:
         self._update_status()
@@ -430,6 +495,17 @@ class MainWindow(Adw.ApplicationWindow):
         self.open_session(session, password)
 
     def open_session(self, session: Session, password: str = "") -> TerminalPage:
+        """Abre una sesión.
+
+        Por defecto la sesión se abre como **pestaña interna** de esta misma
+        interfaz (con su icono y su nombre), igual que las pestañas de sesión
+        del propio editor. Las preferencias permiten alternar entre ventanas
+        flotantes internas o ventanas del sistema.
+        """
+        if self._use_new_window(session):
+            self._open_in_new_window(session, password)
+            return self.current_page() or TerminalPage(title=session.name)
+
         page = TerminalPage(title=session.name, kind=session.type.value,
                             session=session)
         stype = session.type
@@ -454,6 +530,32 @@ class MainWindow(Adw.ApplicationWindow):
         CONFIG.touch(session)
         return self.add_page(page)
 
+    def _use_new_window(self, session: Session) -> bool:
+        """¿Cómo se abre esta sesión?
+
+        * ``tabs``    -> pestaña interna en esta misma ventana (por defecto,
+                         como las pestañas de sesión del propio editor)
+        * ``floating``-> ventana flotante dentro de la interfaz
+        * ``window``  -> ventana del sistema
+        """
+        mode = CONFIG.get("session_presentation", "tabs")
+        if mode == "tabs":
+            return False
+        if mode == "floating":
+            return session.type != SessionType.SHELL
+        return session.type != SessionType.SHELL
+
+    def _open_in_new_window(self, session: Session, password: str = "") -> None:
+        """Abre la sesión como ventana flotante dentro de esta misma interfaz."""
+        win = self._floating.open(session, password)
+        self._toast(tr("Session «{name}» opened in a new window",
+                       name=session.name))
+        return win
+
+    def _forget_window(self, win) -> None:
+        if win in self._session_windows:
+            self._session_windows.remove(win)
+
     def _open_graphical(self, session: Session) -> None:
         from . import remote
 
@@ -471,6 +573,96 @@ class MainWindow(Adw.ApplicationWindow):
         ok, msg = remote.launch(cmd)
         if not ok:
             self._toast(msg, "error")
+
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Selector de sesiones (estilo OpenCode)
+    # ------------------------------------------------------------------
+    def _show_chooser(self) -> None:
+        """Popover para abrir una sesión: guardadas, recientes o nuevas."""
+        popover = Gtk.Popover()
+        popover.set_parent(self.new_session_btn)
+        popover.set_has_arrow(True)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.set_margin_top(8)
+        box.set_margin_bottom(8)
+        box.set_margin_start(8)
+        box.set_margin_end(8)
+
+        search = Gtk.SearchEntry(placeholder_text=tr("Search sessions…"))
+        search.connect("activate", lambda e: self._chooser_quick(search, popover))
+        box.append(search)
+
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_min_content_height(220)
+        scroller.set_min_content_width(320)
+        listbox = Gtk.ListBox()
+        listbox.set_selection_mode(Gtk.SelectionMode.NONE)
+        listbox.add_css_class("navigation-sidebar")
+
+        sessions = sorted(CONFIG.sessions, key=lambda s: s.group)
+        for session in sessions:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            row.set_margin_top(3)
+            row.set_margin_bottom(3)
+            icon = Gtk.Image.new_from_icon_name(session.type.icon)
+            row.append(icon)
+            text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            name = Gtk.Label(label=session.name)
+            name.set_xalign(0)
+            target = Gtk.Label(label=session.display_target())
+            target.add_css_class("dim-label")
+            target.add_css_class("caption")
+            target.set_xalign(0)
+            text.append(name)
+            text.append(target)
+            row.append(text)
+            btn = Gtk.Button(icon_name="go-next-symbolic",
+                             tooltip_text=tr("Open"))
+            btn.add_css_class("flat")
+            btn.connect("clicked",
+                        lambda *_, s=session, p=popover: self._open_from_chooser(s, p))
+            row.append(btn)
+            listbox.append(row)
+
+        if not sessions:
+            empty = Gtk.Label(label=tr("No saved sessions"))
+            empty.add_css_class("dim-label")
+            empty.set_margin_top(12)
+            listbox.append(empty)
+
+        scroller.set_child(listbox)
+        box.append(scroller)
+
+        box.append(Gtk.Separator())
+        for label, kind in ((tr("New SSH session…"), "ssh"),
+                            (tr("Serial console…"), "serial"),
+                            (tr("SFTP…"), "sftp"),
+                            (tr("Local shell"), "shell")):
+            btn = Gtk.Button(label=label)
+            btn.set_halign(Gtk.Align.START)
+            btn.connect("clicked",
+                        lambda *_, k=kind, p=popover: self._new_from_chooser(k, p))
+            box.append(btn)
+
+        popover.set_child(box)
+        popover.show()
+
+    def _open_from_chooser(self, session: Session, popover) -> None:
+        popover.popdown()
+        self.open_session(session)
+
+    def _new_from_chooser(self, kind: str, popover) -> None:
+        popover.popdown()
+        self.new_session(kind)
+
+    def _chooser_quick(self, entry: Gtk.SearchEntry, popover) -> None:
+        text = (entry.get_text() or "").strip()
+        if not text:
+            return
+        popover.popdown()
+        self._quick_connect(text)
 
     # ------------------------------------------------------------------
     def _on_session_activated(self, _sidebar, session: Session) -> None:
@@ -565,6 +757,7 @@ class MainWindow(Adw.ApplicationWindow):
         prefs.present()
 
     def confirm_quit(self) -> None:
+        self._quitting = True
         self.close()
 
     def snapshot_to_png(self, path: str) -> None:
