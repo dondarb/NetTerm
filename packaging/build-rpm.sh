@@ -28,7 +28,7 @@ mkdir -p "$STAGE"
 # Copia sólo lo necesario para construir el paquete.
 cp -r netterm "$STAGE/netterm"
 cp -r data "$STAGE/data"
-cp README.md LICENSE "$STAGE/"
+cp README.md LICENSE NOTICE "$STAGE/"
 mkdir -p "$STAGE/packaging"
 cp packaging/netterm.spec "$STAGE/packaging/"
 find "$STAGE" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || :
