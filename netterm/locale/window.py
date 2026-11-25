@@ -129,3 +129,10 @@ STRINGS.update({
     "Serial console…": "Consola serie…",
     "Local shell": "Terminal local",
 })
+
+STRINGS.update({
+    "Installed version. Close NetTerm completely and reopen it to load a "
+    "new build.":
+        "Versión instalada. Cierra NetTerm por completo y vuelve a abrirlo "
+        "para cargar una compilación nueva.",
+})

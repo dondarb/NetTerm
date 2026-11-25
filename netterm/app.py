@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import signal
+import sys
 
 from . import bootstrap_vendor as _bootstrap
 
@@ -18,9 +19,9 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from .config import APP_ID, APP_NAME, CONFIG  # noqa: E402
+from .version import VERSION  # noqa: E402
 from .i18n import tr  # noqa: E402
 
-VERSION = "1.0.0"
 
 
 class NetTermApp(Adw.Application):
@@ -222,7 +223,11 @@ def bootstrap_vendor() -> bool:
     return _bootstrap()
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if "--version" in argv or "-V" in argv:
+        print(f"{APP_NAME} {VERSION}")
+        return 0
     GLib.set_application_name(APP_NAME)
     GLib.set_prgname(APP_ID)
     bootstrap_vendor()

@@ -21,6 +21,7 @@ from .config import APP_NAME, CONFIG  # noqa: E402
 from .i18n import tr  # noqa: E402
 from .session import Session, SessionType  # noqa: E402
 from .terminal import TerminalPage  # noqa: E402
+from .version import VERSION  # noqa: E402
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -28,7 +29,7 @@ class MainWindow(Adw.ApplicationWindow):
 
     def __init__(self, application=None, **kwargs):
         super().__init__(application=application, **kwargs)
-        self.set_title(APP_NAME)
+        self.set_title(f"{APP_NAME} {VERSION}")
         self.set_default_size(1100, 720)
         self.set_size_request(880, 520)
 
@@ -76,8 +77,17 @@ class MainWindow(Adw.ApplicationWindow):
         self.status_session = Gtk.Label(label="")
         self.status_session.add_css_class("dim-label")
         self.status_session.add_css_class("caption")
+        # Versión siempre visible: evita dudas sobre qué copia está abierta.
+        self.status_version = Gtk.Label(label=f"v{VERSION}")
+        self.status_version.add_css_class("dim-label")
+        self.status_version.add_css_class("caption")
+        self.status_version.set_tooltip_text(
+            tr("Installed version. Close NetTerm completely and reopen it "
+               "to load a new build."))
         self.status_bar.append(self.status_iface)
         self.status_bar.append(self.status_session)
+        self.status_bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
+        self.status_bar.append(self.status_version)
         self.status_revealer = Gtk.Revealer()
         self.status_revealer.set_reveal_child(True)
         self.status_revealer.set_child(self.status_bar)
