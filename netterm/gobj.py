@@ -47,3 +47,15 @@ def clear_list(store) -> None:
     """Vacía un ``Gtk.StringList`` (no tiene ``remove_all``)."""
     while store.get_n_items() > 0:
         store.remove(0)
+
+
+def spin_int(widget) -> int:
+    """Valor entero de un ``Gtk.SpinButton`` o de un ``Adw.SpinRow``.
+
+    No son la misma API: ``Gtk.SpinButton`` tiene ``get_value_as_int()``,
+    mientras que ``Adw.SpinRow`` sólo expone ``get_value()`` (un double).
+    """
+    getter = getattr(widget, "get_value_as_int", None)
+    if getter is not None:
+        return int(getter())
+    return int(round(widget.get_value()))

@@ -10,7 +10,7 @@ from gi.repository import Gio, GObject, Gtk  # noqa: E402
 from .i18n import tr  # noqa: E402
 
 from .config import CONFIG  # noqa: E402
-from .gobj import clear_list  # noqa: E402
+from .gobj import clear_list, spin_int  # noqa: E402
 from .session import Session, SessionType, Tunnel  # noqa: E402
 from . import tunnels  # noqa: E402
 
@@ -114,9 +114,9 @@ class TunnelsPanel(Gtk.Box):
         kind = kinds[self.kind.get_selected()]
         tunnel = Tunnel(kind=kind,
                         bind_address=self.bind.get_text().strip() or "127.0.0.1",
-                        bind_port=self.local_port.get_value_as_int(),
+                        bind_port=spin_int(self.local_port),
                         target_host=self.target_host.get_text().strip(),
-                        target_port=self.target_port.get_value_as_int())
+                        target_port=spin_int(self.target_port))
         handle = self.manager.add(session, tunnel)
         self._reload_list()
         self.log.get_buffer().set_text(

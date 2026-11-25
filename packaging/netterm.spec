@@ -1,7 +1,7 @@
 %global pkgname netterm
 
 Name:           %{pkgname}
-Version:        1.1.0
+Version:        1.1.1
 Release:        1%{?dist}
 Summary:        Terminal avanzada, alternativa nativa a MobaXterm en Linux
 

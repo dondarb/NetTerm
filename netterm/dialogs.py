@@ -16,6 +16,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, GObject, Gtk  # noqa: E402
 
 from .config import CONFIG  # noqa: E402
+from .gobj import spin_int  # noqa: E402
 from .i18n import tr  # noqa: E402
 from .secrets import VAULT  # noqa: E402
 from .session import Session, SessionType, Tunnel  # noqa: E402
@@ -259,7 +260,7 @@ class SessionDialog(Adw.Window):
         session.group = self.group_row.get_text().strip() or tr("Mis sesiones")
         session.username = self.user_row.get_text().strip()
         session.host = self.host_row.get_text().strip()
-        session.port = self.port_row.get_value_as_int()
+        session.port = spin_int(self.port_row)
         session.jump_host = self.jump_row.get_text().strip()
         session.key_file = os.path.expanduser(self.key_row.get_text().strip())
         session.x11_forward = self.x11_row.get_active()
@@ -273,7 +274,7 @@ class SessionDialog(Adw.Window):
             sel = self.port_combo.get_selected()
             if 0 <= sel < len(ports):
                 session.serial_port = ports[sel][0]
-            session.baudrate = self.baud_row.get_value_as_int()
+            session.baudrate = spin_int(self.baud_row)
             session.databits = int(self.bits_row.get_selected()) + 5
             stop_text = self.stop_row.get_selected_item() or "1"
             session.stopbits = float(stop_text)

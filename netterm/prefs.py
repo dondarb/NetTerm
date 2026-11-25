@@ -11,6 +11,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from .config import CONFIG, data_dir  # noqa: E402
+from .gobj import spin_int  # noqa: E402
 from .i18n import tr  # noqa: E402
 from .secrets import VAULT  # noqa: E402
 
@@ -140,12 +141,12 @@ class PreferencesWindow(Adw.PreferencesWindow):
         self._apply_terminal_font()
 
     def _on_font_size(self, row) -> None:
-        CONFIG.set("font_size", row.get_value_as_int())
+        CONFIG.set("font_size", spin_int(row))
         self._save()
         self._apply_terminal_font()
 
     def _on_scrollback(self, row) -> None:
-        CONFIG.set("scrollback", row.get_value_as_int())
+        CONFIG.set("scrollback", spin_int(row))
         self._save()
 
     def _on_blink(self, row, *_a) -> None:

@@ -26,7 +26,7 @@ from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango  # noqa: E402
 from .i18n import tr  # noqa: E402
 
 from .config import CONFIG  # noqa: E402
-from .gobj import ItemObj, clear_list, item_store  # noqa: E402
+from .gobj import ItemObj, clear_list, item_store, spin_int  # noqa: E402
 from . import netif, netops  # noqa: E402
 
 
@@ -278,9 +278,9 @@ class PingPanel(Gtk.Box):
         if not target:
             return
         runner = netops.ping(target, self.selected_iface(),
-                             count=self.count.get_value_as_int(),
-                             size=self.size.get_value_as_int(),
-                             timeout=self.timeout.get_value_as_int())
+                             count=spin_int(self.count),
+                             size=spin_int(self.size),
+                             timeout=spin_int(self.timeout))
         self.console.clear()
         self.console.write(f"$ {' '.join(runner.cmd)}\n\n")
         self._run(runner)
@@ -308,7 +308,7 @@ class PingPanel(Gtk.Box):
         if not target:
             return
         runner = netops.ping_sweep(target, self.selected_iface(),
-                                   timeout=self.timeout.get_value_as_int())
+                                   timeout=spin_int(self.timeout))
         self.console.clear()
         self.console.write(f"$ {tr('barrido de')} {target}\n\n")
         self._run(runner)
