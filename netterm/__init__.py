@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 __all__ = ["__version__", "bootstrap_vendor"]
 
 

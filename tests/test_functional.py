@@ -12,7 +12,7 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import _harness  # noqa: E402,F401  (aisla la configuración)
 
 import gi  # noqa: E402
 
@@ -223,10 +223,14 @@ def test_ui() -> None:
                     host="192.0.2.10", group="UI")
         CONFIG.upsert_session(s)
         win.sidebar.refresh()
-        results["tree_rows"] = win.sidebar._group_store.get_n_items()
-        results["session_rows"] = sum(
-            1 for i in range(win.sidebar._group_store.get_n_items())
-            if win.sidebar._group_store.get_item(i).kind == "session")
+        filas = 0
+        hijo = win.sidebar._listbox.get_first_child()
+        while hijo is not None:
+            if getattr(hijo, "_netterm_session", None) is not None:
+                filas += 1
+            hijo = hijo.get_next_sibling()
+        results["tree_rows"] = filas
+        results["session_rows"] = filas
 
         # Abrir una terminal nueva
         win._open_local_terminal()

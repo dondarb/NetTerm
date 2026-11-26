@@ -6,5 +6,5 @@ comandos muestren siempre el mismo número.
 
 from __future__ import annotations
 
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 __all__ = ["VERSION"]

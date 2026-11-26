@@ -36,6 +36,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.pages: list[TerminalPage] = []
         self._session_windows: list = []
         self._quitting = False
+        self._chooser = None
         self.multi_exec = False
         self._paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self._notebook = Gtk.Notebook()
@@ -591,7 +592,14 @@ class MainWindow(Adw.ApplicationWindow):
     # ------------------------------------------------------------------
     def _show_chooser(self) -> None:
         """Popover para abrir una sesión: guardadas, recientes o nuevas."""
+        # Se conserva la referencia: si no, el recolector puede destruirlo.
+        if self._chooser is not None:
+            try:
+                self._chooser.popdown()
+            except Exception:
+                pass
         popover = Gtk.Popover()
+        self._chooser = popover
         popover.set_parent(self.new_session_btn)
         popover.set_has_arrow(True)
 
@@ -613,6 +621,7 @@ class MainWindow(Adw.ApplicationWindow):
         listbox.add_css_class("navigation-sidebar")
 
         sessions = sorted(CONFIG.sessions, key=lambda s: s.group)
+        self._chooser_rows = []
         for session in sessions:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             row.set_margin_top(3)
@@ -636,6 +645,18 @@ class MainWindow(Adw.ApplicationWindow):
                         lambda *_, s=session, p=popover: self._open_from_chooser(s, p))
             row.append(btn)
             listbox.append(row)
+            self._chooser_rows.append((session, btn))
+
+            # Toda la fila es pulsable: al hacer clic en el nombre o en el
+            # destino se abre la sesión, no sólo en la flecha.
+            click = Gtk.GestureClick()
+            click.connect("released",
+                          lambda *_, s=session, p=popover:
+                          self._open_from_chooser(s, p))
+            row.add_controller(click)
+            # El nombre parece un enlace.
+            name.set_cursor(Gdk.Cursor.new_from_name("pointer", None))
+            target.set_cursor(Gdk.Cursor.new_from_name("pointer", None))
 
         if not sessions:
             empty = Gtk.Label(label=tr("No saved sessions"))
@@ -663,7 +684,6 @@ class MainWindow(Adw.ApplicationWindow):
     def _open_from_chooser(self, session: Session, popover) -> None:
         popover.popdown()
         self.open_session(session)
-
     def _new_from_chooser(self, kind: str, popover) -> None:
         popover.popdown()
         self.new_session(kind)

@@ -20,45 +20,6 @@ from .i18n import tr  # noqa: E402
 from .session import Session, SessionType  # noqa: E402
 
 
-class SessionGroupObj(GObject.Object):
-    """Grupo de sesiones (nivel raíz del árbol)."""
-
-    __gtype_name__ = "NetTermGroup"
-
-    def __init__(self, name: str, sessions: list[Session]):
-        super().__init__()
-        self.name = name
-        self.sessions = sessions
-
-
-class SessionObj(GObject.Object):
-    """Una sesión dentro de un grupo."""
-
-    __gtype_name__ = "NetTermSession"
-
-    def __init__(self, session: Session):
-        super().__init__()
-        self.session = session
-
-
-class SessionRowObj(GObject.Object):
-    """Fila del árbol de sesiones: un grupo (plegable) o una sesión."""
-
-    __gtype_name__ = "NetTermRow"
-
-    def __init__(self, kind: str, icon: str, name_markup: str,
-                 target_markup: str, session: Session | None = None,
-                 level: int = 0, expanded: bool = True):
-        super().__init__()
-        self.kind = kind
-        self.icon = icon
-        self.name_markup = name_markup
-        self.target_markup = target_markup
-        self.session = session
-        self.level = level
-        self.expanded = expanded
-
-
 class Sidebar(Gtk.Box):
     """Columna lateral con pestañas verticales."""
 
@@ -142,38 +103,26 @@ class Sidebar(Gtk.Box):
         self.search.connect("search-changed", lambda *_: self.refresh())
         panel.append(self.search)
 
-        # Árbol de sesiones (lista plana con encabezados de grupo plegables)
-        self._group_store = Gio.ListStore(item_type=SessionRowObj)
+        # Árbol de sesiones: GtkListBox con activación de un solo clic, que
+        # es la forma idiomática en GTK4 (un ColumnView sólo avisa con doble
+        # clic). Las cabeceras de grupo son filas no activables.
+        self._listbox = Gtk.ListBox()
+        self._listbox.set_activate_on_single_click(True)
+        self._listbox.set_selection_mode(Gtk.SelectionMode.NONE)
+        self._listbox.add_css_class("navigation-sidebar")
+        self._listbox.connect("row-activated", self._on_row_activated)
         self._collapsed: set[str] = set()
-        self._selection = Gtk.SingleSelection(model=self._group_store)
-        self._selection.set_autoselect(False)
-        self._selection.set_can_unselect(True)
 
-        self.tree = Gtk.ColumnView(model=self._selection)
-        self.tree.set_show_column_separators(False)
-        self.tree.set_show_row_separators(True)
-        self.tree.set_reorderable(False)
-
-        def _add_column(title: str, builder: str):
-            factory = Gtk.SignalListItemFactory()
-            factory.connect("setup", self._setup_cell, builder)
-            factory.connect("bind", self._bind_cell, builder)
-            col = Gtk.ColumnViewColumn()
-            col.set_title(title)
-            col.set_factory(factory)
-            col.set_expand(builder != "target")
-            self.tree.append_column(col)
-
-        _add_column("", "icon")
-        _add_column(tr("Sesión"), "name")
-        _add_column(tr("Destino"), "target")
-
-        self.tree.connect("activate", self._on_row_activated)
+        # Menú contextual con el botón derecho.
+        right = Gtk.GestureClick()
+        right.set_button(3)
+        right.connect("pressed", self._on_tree_button)
+        self._listbox.add_controller(right)
 
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scroller.set_vexpand(True)
-        scroller.set_child(self.tree)
+        scroller.set_child(self._listbox)
         panel.append(scroller)
 
         # Botonera
@@ -192,33 +141,6 @@ class Sidebar(Gtk.Box):
         self._panels["sessions"] = panel
         self.refresh()
 
-    def _setup_cell(self, factory, list_item, builder: str) -> None:
-        if builder == "icon":
-            widget = Gtk.Image()
-        else:
-            widget = Gtk.Label(xalign=0)
-            widget.set_ellipsize(3)
-        list_item.set_child(widget)
-
-    def _bind_cell(self, factory, list_item, builder: str) -> None:
-        row = list_item.get_item()
-        widget = list_item.get_child()
-        if row is None:
-            return
-        if builder == "icon":
-            widget.set_from_icon_name(row.icon)
-        elif builder == "name":
-            widget.set_markup(row.name_markup)
-        else:
-            widget.set_markup(row.target_markup)
-
-    def _row_at(self, path) -> SessionRowObj | None:
-        model = self._group_store
-        return model.get_item(model.get_path(path)) if path else None
-
-    def _selected_row(self) -> SessionRowObj | None:
-        return self._selection.get_selected_item()
-
     def _icon_data_func(self, _column, cell, model, iter_, _data) -> None:
         row = model.get_value(iter_, 0)
         cell.set_property("icon-name", row.icon if row else "")
@@ -231,20 +153,14 @@ class Sidebar(Gtk.Box):
         row = model.get_value(iter_, 0)
         cell.set_property("markup", row.target_markup if row else "")
 
-    def _create_children(self, _model, item) -> Gio.ListStore:
-        store = Gio.ListStore(item_type=SessionObj)
-        for s in getattr(item, "sessions", []):
-            store.append(SessionObj(s))
-        return store
-
-    def _filter_visible(self, model, iter_, *args) -> bool:
-        """Reservado: el filtrado se aplica al reconstruir el modelo."""
-        return True
-
     def refresh(self) -> None:
         """Recarga el árbol de sesiones desde la configuración."""
         text = (self.search.get_text() or "").lower().strip()
-        self._group_store.remove_all()
+        hijo = self._listbox.get_first_child()
+        while hijo is not None:
+            siguiente = hijo.get_next_sibling()
+            self._listbox.remove(hijo)
+            hijo = siguiente
 
         groups: dict[str, list[Session]] = {}
         for s in CONFIG.sessions:
@@ -257,26 +173,46 @@ class Sidebar(Gtk.Box):
             sessions = groups[gname]
             expanded = gname not in self._collapsed
             arrow = "▾" if expanded else "▸"
-            self._group_store.append(SessionRowObj(
-                kind="group",
-                icon="",
-                name_markup=f"<b>{arrow}  {GLib.markup_escape_text(gname)}</b>",
-                target_markup=f"<span size='small'>{len(sessions)}</span>",
-                expanded=expanded,
-            ))
+            cabecera = Gtk.ListBoxRow()
+            cabecera.set_activatable(True)
+            caja = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            etiqueta = Gtk.Label(label=f"{arrow}  {gname}")
+            etiqueta.set_xalign(0)
+            etiqueta.set_hexpand(True)
+            etiqueta.add_css_class("heading")
+            caja.append(etiqueta)
+            contador = Gtk.Label(label=str(len(sessions)))
+            contador.add_css_class("dim-label")
+            contador.add_css_class("caption")
+            caja.append(contador)
+            cabecera.set_child(caja)
+            cabecera._netterm_group = gname  # type: ignore[attr-defined]
+            self._listbox.append(cabecera)
+
             if not expanded:
                 continue
             for s in sessions:
-                self._group_store.append(SessionRowObj(
-                    kind="session",
-                    icon=s.type.icon,
-                    name_markup=f"    {GLib.markup_escape_text(s.name)}",
-                    target_markup=("<span size='small'>"
-                                   f"{GLib.markup_escape_text(s.display_target())}"
-                                   "</span>"),
-                    session=s,
-                    level=1,
-                ))
+                fila = Gtk.ListBoxRow()
+                fila.set_activatable(True)
+                fila._netterm_session = s  # type: ignore[attr-defined]
+                contenido = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                contenido.set_margin_top(3)
+                contenido.set_margin_bottom(3)
+                contenido.set_margin_start(18)
+                icono = Gtk.Image.new_from_icon_name(s.type.icon)
+                contenido.append(icono)
+                textos = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                nombre = Gtk.Label(label=s.name)
+                nombre.set_xalign(0)
+                destino = Gtk.Label(label=s.display_target())
+                destino.add_css_class("dim-label")
+                destino.add_css_class("caption")
+                destino.set_xalign(0)
+                textos.append(nombre)
+                textos.append(destino)
+                contenido.append(textos)
+                fila.set_child(contenido)
+                self._listbox.append(fila)
 
         for panel in self._panels.values():
             if hasattr(panel, "refresh"):
@@ -340,15 +276,46 @@ class Sidebar(Gtk.Box):
             self.window._quick_connect(text)
             entry.set_text("")
 
-    def _on_row_activated(self, _view, _position, _col) -> None:
-        row = self._selected_row()
+    def _on_tree_release(self, _view, event) -> bool:
+        """Abre la sesión con un único clic."""
+        if event.button != 1:
+            return False
+        row = self._listbox.get_selected_row()
+        session = self._row_session(row) if row is not None else None
+        if session is None:
+            return False
+        self.emit("session-activated", session)
+        return False
+
+    def _row_session(self, row) -> Session | None:
+        return getattr(row, "_netterm_session", None)
+
+    def _row_group(self, row) -> str | None:
+        return getattr(row, "_netterm_group", None)
+
+    def _on_tree_button(self, _gesture, _n_press, x: float, y: float) -> None:
+        """Menú contextual con el botón derecho."""
+        row = self._listbox.get_selected_row()
+        session = self._row_session(row) if row is not None else None
+        if session is None:
+            return
+        self._show_context_menu(session, x, y)
+
+    def _on_row_activated(self, _listbox, row) -> None:
+        """Un clic en una fila: si es un grupo, se pliega; si es sesión, se abre."""
         if row is None:
             return
-        if row.kind == "group":
-            self._toggle_group(row.name_markup)
+        grupo = self._row_group(row)
+        if grupo:
+            if grupo in self._collapsed:
+                self._collapsed.discard(grupo)
+            else:
+                self._collapsed.add(grupo)
+            self.refresh()
             return
-        if row.session is not None:
-            self.emit("session-activated", row.session)
+        session = self._row_session(row)
+        if session is not None:
+            self.emit("session-activated", session)
 
     def _toggle_group(self, name_markup: str) -> None:
         """Plega o despliega un grupo (por su nombre de encabezado)."""
@@ -363,16 +330,15 @@ class Sidebar(Gtk.Box):
             self._collapsed.add(plain)
         self.refresh()
 
-    def _on_tree_button(self, _tree, event) -> bool:
-        if event.button != 3:
-            return False
-        row = self._selected_row()
-        if row is None or row.kind != "session" or row.session is None:
-            return False
-        self._show_context_menu(row.session, event)
-        return True
+    def _on_tree_button(self, _gesture, _n_press, x: float, y: float) -> None:
+        """Menú contextual con el botón derecho."""
+        row = self._listbox.get_selected_row()
+        session = self._row_session(row) if row is not None else None
+        if session is None:
+            return
+        self._show_context_menu(session, x, y)
 
-    def _show_context_menu(self, session: Session, event) -> None:
+    def _show_context_menu(self, session: Session, x: float, y: float) -> None:
         menu = Gio.Menu()
         menu.append(tr("Abrir"), "win.open-session")
         menu.append(tr("Abrir SFTP"), "win.open-sftp")
@@ -382,11 +348,10 @@ class Sidebar(Gtk.Box):
         menu.append(tr("Eliminar"), "win.delete-session")
 
         popover = Gtk.PopoverMenu.new_from_model(menu)
-        popover.set_parent(self.tree)
+        popover.set_parent(self._listbox)
         popover.set_has_arrow(False)
-        popover.set_pointing_to(Gdk.Rectangle())
-        popover.set_pointing_to(
-            Gdk.Rectangle(x=int(event.x), y=int(event.y), width=1, height=1))
+        popover.set_pointing_to(Gdk.Rectangle(x=int(x), y=int(y),
+                                              width=1, height=1))
         popover.connect("closed", lambda *_: popover.unparent())
         popover.popup()
 
@@ -398,13 +363,13 @@ class Sidebar(Gtk.Box):
         self.show_panel("sftp")
 
     def _delete_session(self) -> None:
-        row = self._selected_row()
-        if row is not None and row.kind == "session" and row.session is not None:
-            CONFIG.delete_session(row.session.id)
+        row = self._listbox.get_selected_row()
+        session = self._row_session(row) if row is not None else None
+        if session is not None:
+            CONFIG.delete_session(session.id)
             self.refresh()
             self.emit("status-message",
-                      tr("Sesión «{name}» eliminada",
-                         name=row.session.name))
+                      tr("Sesión «{name}» eliminada", name=session.name))
 
     # ------------------------------------------------------------------
     def on_interface_changed(self) -> None:
